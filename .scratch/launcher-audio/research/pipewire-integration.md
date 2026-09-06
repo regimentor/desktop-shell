@@ -1,0 +1,32 @@
+# PipeWire в лаунчере: возможности и границы
+
+Исследование от 2026-09-05. Целевая версия Quickshell — 0.3.1 по [документации проекта](../../../docs/launcher.md). Проверены официальные страницы API именно v0.3.1; документация PipeWire сейчас обозначена 1.6.8, WirePlumber — 0.5.17. Версии и политика аудиосессии пользователя не проверялись; команды изменения звука не выполнялись.
+
+## Подтверждённые возможности
+
+- `Pipewire.nodes` предоставляет все узлы, `defaultAudioSink` — текущий выход по умолчанию, `preferredDefaultAudioSink` позволяет задать предпочтение. До `Pipewire.ready` данные могут быть неполными, а выход при переключении временно становится `null`. [Pipewire 0.3.1](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/Pipewire/).
+- Для узла воспроизведения и устройства доступны изменяемые `audio.volume` и `audio.muted`. Громкость усредняется по каналам, запись сохраняет их пропорции. Перед использованием узел нужно связать через `PwObjectTracker`. Это достаточная основа для мышиного ползунка и клавиш; группового управления несколькими потоками этот API не предоставляет. [PwNodeAudio](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/PwNodeAudio/), [PwObjectTracker](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/PwObjectTracker/).
+- Потоки воспроизведения имеют `media.class=Stream/Output/Audio`, устройства воспроизведения — `Audio/Sink`. В Quickshell доступны `type`, `audio`, `isStream`, `isSink`; последние два описаны как эвристика, поэтому точный класс предпочтительнее. [WirePlumber linking](https://pipewire.pages.freedesktop.org/wireplumber/policies/linking.html), [PwNode](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/PwNode/).
+- Текущие соединения можно наблюдать через `PwNodeLinkTracker`; коллекции Quickshell являются `ObjectModel` с уведомлениями об изменениях. Вывод: модель звуковых приложений можно обновлять по событиям, без периодического опроса. [PwNodeLinkTracker](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/PwNodeLinkTracker/), [ObjectModel](https://quickshell.org/docs/v0.3.1/types/Quickshell/ObjectModel/).
+
+## Перенос на другое устройство
+
+В опубликованном API `PwNode` нет операции переноса потока; `preferredDefaultAudioSink` относится к общему предпочтению, а не к отдельному приложению. Поэтому для выбора выхода приложения нужен дополнительный интерфейс. [PwNode](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/PwNode/), [Pipewire](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/Pipewire/).
+
+**Нативный путь при WirePlumber:** обновление metadata `target.object` переносит уже связанный поток, если нет `node.dont-move`. `pw-metadata` умеет записывать metadata, `target.object` принимает имя или `object.serial` цели. Нужна проверка установленного session manager и его политики; одного наличия PipeWire недостаточно для обещания этого поведения. [Политика WirePlumber](https://pipewire.pages.freedesktop.org/wireplumber/policies/linking.html), [pw-metadata](https://docs.pipewire.org/page_man_pw-metadata_1.html), [ключи PipeWire](https://docs.pipewire.org/group__pw__keys.html).
+
+**Допустимая альтернатива через pipewire-pulse:** сервер официально заменяет PulseAudio; `pactl move-sink-input ID SINK` переносит поток на выход. `pactl` также предоставляет JSON-списки, `subscribe`, отдельные команды громкости и mute для выходов и потоков. Это обоснованный альтернативный адаптер; доступность конкретных потоков и их идентификаторов следует проверять по представлению Pulse, а не считать `PwNode.id` автоматически индексом sink-input. Полное покрытие произвольного нативного графа данным исследованием не установлено. [pipewire-pulse](https://docs.pipewire.org/page_man_pipewire-pulse_1.html), [официальная man-страница pactl](https://raw.githubusercontent.com/pulseaudio/pulseaudio/master/man/pactl.1.xml.in), [PwNode.id](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/PwNode/).
+
+## Группировка и жизненный цикл
+
+`application.id` предназначен для логической идентификации приложения; также определены `application.name`, `application.process.binary`, `application.process.id` и `application.icon-name`. Quickshell открывает набор свойств связанного узла, но предупреждает, что метаданные могут отсутствовать. Вывод: группировку нужно определить как политику лаунчера с резервными признаками; один PID не выражает гарантированно всё приложение, а одинаковое имя не доказывает идентичность. [Ключи PipeWire](https://docs.pipewire.org/group__pw__keys.html), [PwNode.properties](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/PwNode/).
+
+Поскольку `nodes` содержит все существующие узлы, фильтр по классу, без проверки активности или mute, сохраняет существующие потоки на паузе и с выключенным звуком. Это вывод из API, а не гарантия сохранения потока самим приложением: удалённый узел уже не представлен, отдельного обещания истории приложений API нет. Видимого свойства состояния «пауза» в `PwNode` нет. [Pipewire.nodes](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/Pipewire/), [PwNode](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pipewire/PwNode/).
+
+При исчезновении выхода стандартная политика WirePlumber пытается переподключить поток; свойства `node.dont-reconnect`, `node.dont-fallback`, `node.linger` меняют это поведение. Поэтому интерфейс должен отражать фактическое соединение, а не обещать успешное переключение сразу после команды. [Политика WirePlumber](https://pipewire.pages.freedesktop.org/wireplumber/policies/linking.html).
+
+## Рекомендация для следующего решения
+
+Предпочесть Quickshell для наблюдения, громкости и mute; при подтверждённом WirePlumber — небольшой адаптер записи metadata для переноса. Если выбирается pipewire-pulse, явно согласовать поддерживаемое представление потоков и способ сопоставления идентификаторов. Это рекомендация исследователя, **не согласованный пользователем выбор**.
+
+Перед фиксацией технического пути необходимо выбрать runtime-предпосылку: WirePlumber с поддержкой переноса metadata или работающий pipewire-pulse с проверенным покрытием нужных приложений. Отдельно в продуктовых билетах решить: mute всех выходов или только текущего; смешанные громкости/mute/выходы внутри приложения; применение настройки к вновь появившимся потокам. Эти вопросы API не решает.

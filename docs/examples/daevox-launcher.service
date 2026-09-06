@@ -1,0 +1,14 @@
+[Unit]
+Description=Daevox application launcher (Quickshell)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/qs --no-duplicate --path %h/.config/quickshell/daevox-launcher/shell.qml
+Restart=on-failure
+RestartSec=1
+Slice=app-graphical.slice
+
+[Install]
+WantedBy=graphical-session.target
