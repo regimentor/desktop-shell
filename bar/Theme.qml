@@ -1,5 +1,5 @@
 import QtQuick
-import "shared" as Shared
+import "../shared" as Shared
 
 Shared.DaevoxTheme {
     readonly property int workspaceAnimationDuration: 150

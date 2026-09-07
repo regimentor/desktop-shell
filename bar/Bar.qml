@@ -84,7 +84,7 @@ PanelWindow {
                     id: languageHover
                     anchors.fill: parent
                     hoverEnabled: true
-                    enabled: barWindow.state.ready && !!barWindow.state.data.keyboard
+                    enabled: barWindow.state.canChangeLayout
                     cursorShape: Qt.PointingHandCursor
                     onClicked: barWindow.state.nextLayout()
                 }

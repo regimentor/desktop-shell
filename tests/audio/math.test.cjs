@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { test } = require('node:test');
 const math = vm.createContext({});
-vm.runInContext(fs.readFileSync(`${__dirname}/../../launcher/AudioMath.js`, 'utf8'), math);
+vm.runInContext(fs.readFileSync(`${__dirname}/../../launcher/audio/AudioMath.js`, 'utf8'), math);
 const plain = value => JSON.parse(JSON.stringify(value));
 
 test('group volume preserves proportions and restores known ratios through zero', () => {

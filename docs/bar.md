@@ -5,30 +5,30 @@ Quickshell 0.3.1, Hyprland 0.56.2. Верхняя панель на каждом
 дата и время. Высота 30 px, внешний отступ 6 px, резервирование 36 px.
 
 Для иконок панель использует Adwaita (пакет `adwaita-icon-theme`), включая
-символические иконки меню Bluetooth. Настройка действует только на процесс
-панели. `UseQApplication` в `shell.qml` включает поддержку контекстных меню трея.
+символические иконки меню Bluetooth. Настройка действует на весь процесс
+оболочки, включая лаунчер. `UseQApplication` в `shell.qml` включает поддержку контекстных меню трея.
 
 ## Запуск
 
 ```bash
-qs --no-duplicate --log-rules 'quickshell.io.socket.warning=false' --path ./bar/shell.qml
+qs --no-duplicate --log-rules 'quickshell.io.socket.warning=false' --path ./shell.qml
 ```
 
 Установка из любого рабочего каталога, от обычного пользователя:
 
 ```bash
-/path/to/daevox-shell/install-bar.sh
-systemctl --user status daevox-bar.service
+/path/to/daevox-shell/install-shell.sh
+systemctl --user status daevox-shell.service
 ```
 
 Установщик включает сервис и запускает его в активной графической сессии.
-Перед установкой завершите ручную копию панели. Launcher устанавливается
-отдельно через `install-launcher.sh`; его команда открытия не меняется.
+Перед установкой завершите ручные копии оболочки и старых модулей.
+Панель и лаунчер устанавливаются вместе; IPC использует корневой `shell.qml`.
 
 ```bash
-systemctl --user stop daevox-bar.service
-systemctl --user restart daevox-bar.service
-journalctl --user -u daevox-bar.service -b
+systemctl --user stop daevox-shell.service
+systemctl --user restart daevox-shell.service
+journalctl --user -u daevox-shell.service -b
 ```
 
 ## Поведение
@@ -59,7 +59,7 @@ journalctl --user -u daevox-bar.service -b
 завершается закрытием request-сокета, а не первым read. Каждое соединение
 получает свою эпоху; поздние ответы после сбоя игнорируются.
 
-`HyprlandState.qml` объединяет события с задержкой 40 ms и обновляет только
+`desktop/DesktopState.qml` объединяет события с задержкой 40 ms и обновляет только
 связанные снимки. В спокойном состоянии опроса по таймеру нет. После таймаута,
 обрыва, неподдерживаемой версии или некорректного ответа состояние очищается,
 действия блокируются; часы и трей продолжают работать. Задержка повторного
@@ -81,32 +81,20 @@ journalctl --user -u daevox-bar.service -b
 ## Общая тема
 
 Единственный источник цветов и шрифта — `shared/DaevoxTheme.qml`.
-Геометрия остаётся в локальных `Theme.qml`. В каждом runtime ссылка
-`shared → ../shared` позволяет импортировать тему через `import "shared"`.
-Прямой `../shared` из согласованной спецификации оказался несовместим с
-[ограничением Quickshell на файлы вне конфигурации](https://quickshell.org/changelog/#v020).
-Ссылка сохраняет общий источник и согласованное расположение установки:
-
-```text
-~/.config/quickshell/
-├── shared/DaevoxTheme.qml
-├── shared/qmldir
-├── daevox-launcher/shared -> ../shared
-└── daevox-bar/shared -> ../shared
-```
-
-Оба установщика заменяют общие файлы атомарно и сохраняют посторонние файлы
-в `shared`. Прототип не устанавливается.
+Геометрия остаётся в локальных `Theme.qml`. Общая тема лежит внутри
+корня единой конфигурации и импортируется через `../shared`.
+Ссылки из отдельных модулей больше не нужны. Adwaita задаётся в корневом
+`shell.qml` для панели и лаунчера. Старый соседний `shared/` сохраняется при миграции.
 
 ## Проверки
 
 Из корня проекта:
 
 ```bash
-node tests/bar/model.test.cjs
-python3 tests/bar/transport.test.py
-python3 tests/bar/install.test.py
-bash -n install-bar.sh install-launcher.sh
+node tests/desktop/model.test.cjs
+python3 tests/desktop/transport.test.py
+python3 tests/install/install.test.py
+bash -n install-shell.sh uninstall-legacy.sh
 /usr/lib/qt6/bin/qmllint -I /usr/lib/qt6/qml bar/*.qml
 ```
 
@@ -114,8 +102,9 @@ bash -n install-bar.sh install-launcher.sh
 они используют offscreen Qt и не подключаются к Hyprland. Проверяются
 частичные JSON/UTF-8, события во время снимка, неизвестные события,
 некорректные данные, таймаут, поздний ответ, разрыв и отсутствие повторной
-отправки команды. Тест установки использует `bwrap`, временную `.config`
-и подставной systemctl; реальная установка пользователя не изменяется.
+отправки команды. Тесты установки используют временные каталоги и подставной systemctl;
+реальная установка пользователя не изменяется. `tests/install/cli.test.py`
+дополнительно запускает настоящие CLI и сборку нативного модуля.
 
 Qt6 qmllint оставляет предупреждения метаданных Quickshell: PanelWindow
 объявлен не создаваемым до регистрации Wayland backend, тип параметра
@@ -125,8 +114,8 @@ Qt6 qmllint оставляет предупреждения метаданных
 Живые короткие проверки, автоматически закрывающиеся:
 
 ```bash
-qs --no-color --log-rules 'quickshell.io.socket.warning=false' --path tests/bar/ui.qml
-qs --no-color --log-rules 'quickshell.io.socket.warning=false' --path tests/bar/dense.qml
+bash tests/bar/run.sh ui
+bash tests/bar/run.sh dense
 ```
 
 `ui.qml` проверяет геометрию на всех экранах, `dense.qml` — 30 тестовых окон

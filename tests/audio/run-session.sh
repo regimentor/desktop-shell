@@ -41,10 +41,10 @@ pids+=("$!")
 test_source=shell.qml
 if [[ ${1:-} == ui ]]; then test_source=ui.qml; else export QT_QPA_PLATFORM=offscreen; fi
 mkdir -p "$test_dir/qml"
-mkdir -p "$test_dir/qml/shared"
-cp "$project_dir"/shared/DaevoxTheme.qml "$project_dir"/shared/qmldir "$test_dir/qml/shared/"
-cp "$project_dir"/launcher/*.qml "$project_dir"/launcher/*.js "$test_dir/qml/"
-sed '\|import "../../launcher"|d' "$project_dir/tests/audio/$test_source" > "$test_dir/qml/shell.qml"
+for module in shared launcher desktop notifications; do
+    cp -r "$project_dir/$module" "$test_dir/qml/$module"
+done
+sed 's|"../../|"|g' "$project_dir/tests/audio/$test_source" > "$test_dir/qml/shell.qml"
 result=0
 timeout 35 qs --path "$test_dir/qml/shell.qml" --no-color >"$test_dir/test.log" 2>&1 || result=$?
 cat "$test_dir/test.log"

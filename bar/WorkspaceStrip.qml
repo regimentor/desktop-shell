@@ -18,9 +18,8 @@ Item {
     implicitWidth: Math.min(naturalWidth, Math.max(0, availableWidth))
     implicitHeight: 24
     function clickPosition(item: var, event: var): var {
-        const monitor = hyprland.data.monitors.find(m => m.name === output);
         const point = item.mapToItem(null, event.x, event.y);
-        return monitor ? { x: monitor.x + point.x, y: monitor.y + point.y } : null;
+        return hyprland.globalPosition(output, point);
     }
     FontMetrics { id: metrics; font.family: root.theme.fontFamily; font.pixelSize: root.theme.fontSize }
     Row {
@@ -77,7 +76,7 @@ Item {
                                 radius: 3
                                 color: root.theme.urgent
                                 opacity: 0.3
-                                visible: !!root.hyprland.data.urgent[windowIcon.windowData.address] || !!windowIcon.windowData.urgent
+                                visible: root.hyprland.windowUrgent(windowIcon.windowData.address) || !!windowIcon.windowData.urgent
                             }
                             Image {
                                 anchors.centerIn: parent
@@ -95,7 +94,7 @@ Item {
                                 height: 2
                                 radius: 1
                                 color: root.theme.accent
-                                visible: root.hyprland.data.active === windowIcon.windowData.address
+                                visible: root.hyprland.windowActive(windowIcon.windowData.address)
                             }
                             MouseArea {
                                 id: hover

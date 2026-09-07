@@ -1,6 +1,9 @@
 pragma ComponentBehavior: Bound
+import "../shared" as Shared
 
 import QtQuick
+import "audio"
+import "../notifications" as Notifications
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
@@ -8,7 +11,9 @@ import Quickshell.Hyprland
 
 PanelWindow {
     id: root
+    required property var desktop
     property string mode: "apps"
+    property var notifications: null
     readonly property real panelTop: modes.y + modes.height + 4
     visible: false
     color: theme.transparent
@@ -21,11 +26,10 @@ PanelWindow {
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     mask: Region {
         item: panel
-        Region { item: modes }
+        Region { x: modes.x - 2; y: modes.y; width: modes.width + 4; height: modes.height + 4 }
     }
 
     Theme { id: theme }
-    KeyboardLayout { id: keyboardLayout; active: root.visible }
     AudioModel { id: audio }
     AudioRouter { id: router; audio: audio }
     AppModel {
@@ -34,18 +38,27 @@ PanelWindow {
         onResultsChanged: root.resetSelection()
         onLaunched: root.close()
     }
+    Connections {
+        target: root.notifications
+        function onBlockedChanged() { if (root.notifications.blocked) root.close(); }
+    }
     HyprlandFocusGrab {
         id: grab
         windows: [root]
         onCleared: root.close()
     }
 
-    function open(): void {
-        const monitor = Hyprland.focusedMonitor;
-        const target = Quickshell.screens.find(candidate => monitor && candidate.name === monitor.name);
-        if (target) screen = target;
+    function open(): void { openMode("apps"); }
+
+    function openMode(value: string): void {
+        if (notifications && notifications.blocked) return;
+        const target = desktop.screenFor(Quickshell.screens);
+        if (!target) return;
+        screen = target;
         search.text = "";
-        mode = "apps";
+        mode = ["apps", "audio", "notifications"].includes(value) ? value : "apps";
+        if (notificationPane.item) notificationPane.item.cancelReply();
+        if (mode === "audio") router.check();
         audioPane.reset();
         apps.error = "";
         resetSelection();
@@ -54,7 +67,18 @@ PanelWindow {
         grab.active = true;
     }
 
+    Connections {
+        target: Quickshell
+        function onScreensChanged() {
+            if (!Quickshell.screens.includes(root.screen)) {
+                root.close();
+                root.screen = root.desktop.screenFor(Quickshell.screens);
+            }
+        }
+    }
+
     function close(): void {
+        if (notificationPane.item) notificationPane.item.cancelReply();
         audioPane.reset();
         grab.active = false;
         visible = false;
@@ -70,6 +94,9 @@ PanelWindow {
             mode: mode, audioApplications: audio.groups.length, audioReady: audio.ready,
             routingAvailable: router.available, routingMessage: router.message,
             results: apps.results.length, selected: list.currentIndex,
+            notifications: notifications ? {ready: notifications.ready, total: notifications.records.filter(row => !row.transient).length,
+                unread: notifications.records.filter(row => !row.transient && row.unread).length,
+                dnd: notifications.dnd, lock: notifications.lockState} : null,
             query: search.text, inputFocused: search.activeFocus,
             launching: apps.launching, error: apps.error });
     }
@@ -85,10 +112,10 @@ PanelWindow {
         list.positionViewAtIndex(list.currentIndex, ListView.Contain);
     }
 
-    function handleKey(event: var): void {
+    function handleKey(event: var, editing: bool): void {
         const alt = (event.modifiers & Qt.AltModifier) !== 0;
-        if (alt && (event.key === Qt.Key_1 || event.key === Qt.Key_2)) {
-            switchMode(event.key === Qt.Key_1 ? "apps" : "audio");
+        if (alt && (event.key === Qt.Key_1 || event.key === Qt.Key_2 || event.key === Qt.Key_3)) {
+            switchMode(event.key === Qt.Key_1 ? "apps" : event.key === Qt.Key_2 ? "audio" : "notifications");
             event.accepted = true;
             return;
         }
@@ -104,8 +131,18 @@ PanelWindow {
         const previous = ctrl && (event.nativeScanCode === 45
             || (event.nativeScanCode === 0 && event.key === Qt.Key_K));
         if (event.key === Qt.Key_Escape) {
-            if (search.text) search.text = "";
+            if (mode === "notifications" && notificationPane.item && notificationPane.item.cancelReply()) {}
+            else if (search.text) search.text = "";
             else close();
+        }
+        else if (mode === "notifications") {
+            if (!notificationPane.item) return;
+            if (event.key === Qt.Key_Down) notificationPane.item.moveSelection(1);
+            else if (event.key === Qt.Key_Up) notificationPane.item.moveSelection(-1);
+            else if (event.key === Qt.Key_Backspace && !editing) notificationPane.item.removeSelected();
+            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                if (!event.isAutoRepeat) notificationPane.item.activate();
+            } else return;
         }
         else if (mode === "audio") {
             if (event.key === Qt.Key_Down) audioPane.moveSelection(1);
@@ -130,6 +167,7 @@ PanelWindow {
     }
 
     function switchMode(value: string): void {
+        if (notificationPane.item) notificationPane.item.cancelReply();
         mode = value;
         search.text = "";
         audioPane.reset();
@@ -145,36 +183,21 @@ PanelWindow {
         anchors.left: panel.left
         spacing: 8
         Repeater {
-            model: [{ mode: "apps", title: "▦ Apps", hint: "Alt+1" },
-                { mode: "audio", title: "♪ Volume", hint: "Alt+2" }]
-            delegate: Column {
+            model: [{ mode: "apps", icon: "apps", label: "Приложения" },
+                { mode: "audio", icon: "volume", label: "Звук" },
+                { mode: "notifications", icon: "bell", label: "Уведомления" }]
+            delegate: Shared.IconButton {
                 id: modeButton
+                shadowEnabled: true
                 required property var modelData
-                spacing: 2
-                Button {
-                    objectName: "mode-" + modeButton.modelData.mode
-                    width: 100
-                    height: 30
-                    text: modeButton.modelData.title
-                    font.family: theme.fontFamily
-                    font.pixelSize: theme.fontSize
-                    palette.buttonText: theme.text
-                    background: Rectangle {
-                        color: root.mode === modeButton.modelData.mode ? theme.surface : theme.background
-                        border.color: parent.activeFocus ? theme.accent : theme.border
-                        radius: 10
-                    }
-                    onClicked: root.switchMode(modeButton.modelData.mode)
-                    Keys.priority: Keys.BeforeItem
-                    Keys.onPressed: event => root.handleKey(event)
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: modeButton.modelData.hint
-                    color: theme.textMuted
-                    font.family: theme.fontFamily
-                    font.pixelSize: theme.smallFontSize
-                }
+                objectName: "mode-" + modelData.mode
+                theme: theme
+                iconName: modelData.icon
+                label: modelData.label
+                active: root.mode === modelData.mode
+                onClicked: root.switchMode(modelData.mode)
+                Keys.priority: Keys.BeforeItem
+                Keys.onPressed: event => root.handleKey(event, false)
             }
         }
     }
@@ -210,16 +233,16 @@ PanelWindow {
             font.family: theme.fontFamily
             font.pixelSize: theme.searchFontSize
             color: theme.text
-            placeholderText: root.mode === "audio" ? "Поиск звуковых приложений…" : "Search applications…"
+            placeholderText: root.mode === "notifications" ? "Поиск уведомлений…" : root.mode === "audio" ? "Поиск звуковых приложений…" : "Search applications…"
             placeholderTextColor: theme.textMuted
             selectionColor: theme.accent
             selectedTextColor: theme.background
             background: Item {}
             focus: true
             selectByMouse: true
-            activeFocusOnTab: root.mode === "audio"
+            activeFocusOnTab: root.mode !== "apps"
             Keys.priority: Keys.BeforeItem
-            Keys.onPressed: event => root.handleKey(event)
+            Keys.onPressed: event => root.handleKey(event, true)
         }
         Rectangle {
             anchors.top: parent.top
@@ -331,7 +354,27 @@ PanelWindow {
             audio: audio
             router: router
             query: search.text
-            keyHandler: root.handleKey
+            keyHandler: event => root.handleKey(event, false)
+        }
+        Loader {
+            id: notificationPane
+            active: root.notifications !== null
+            visible: root.mode === "notifications"
+            anchors.top: parent.top; anchors.topMargin: theme.searchHeight + 8
+            anchors.bottom: footer.top; anchors.bottomMargin: 8
+            anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+            sourceComponent: Notifications.NotificationPane {
+                theme: theme; notifications: root.notifications; query: search.text
+                visible: root.mode === "notifications"
+                keyHandler: event => root.handleKey(event, false)
+                onSearchFocusRequested: search.forceActiveFocus()
+            }
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: root.mode === "notifications" && !root.notifications
+            text: "Уведомления ещё не включены"
+            color: theme.textMuted; font.family: theme.fontFamily; font.pixelSize: theme.fontSize
         }
         Item {
             id: footer
@@ -345,7 +388,8 @@ PanelWindow {
                 anchors.right: layoutIndicator.left
                 anchors.rightMargin: theme.spacing
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.mode === "audio" ? (router.unavailableReason || "← → Громкость · Alt+M Mute · Alt+O Выход · Enter Потоки")
+                text: root.mode === "notifications" ? ((root.notifications ? root.notifications.error : "") || "↑ ↓ Выбор · Enter Открыть · Backspace Удалить")
+                    : root.mode === "audio" ? (router.unavailableReason || "← → Громкость · Alt+M Mute · Alt+O Выход · Enter Потоки")
                     : apps.error || (apps.launching ? "Launching…" : "↑ ↓  Navigate     Enter: Launch     Esc: Close")
                 color: apps.error ? theme.accent : theme.textMuted
                 font.family: theme.fontFamily
@@ -358,7 +402,7 @@ PanelWindow {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 width: Math.min(implicitWidth, parent.width / 4)
-                text: keyboardLayout.label
+                text: root.desktop.language
                 color: theme.accent
                 font.family: theme.fontFamily
                 font.pixelSize: theme.smallFontSize

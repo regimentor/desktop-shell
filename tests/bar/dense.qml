@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell
 import "runtime"
-import "runtime/StateModel.js" as Model
+import "desktop/StateModel.js" as Model
 
 ShellRoot {
     id: root
@@ -10,6 +10,10 @@ ShellRoot {
     QtObject {
         id: fixture
         property bool ready: true
+        property bool canChangeLayout: false
+        function windowActive(address) { return address === "0x1"; }
+        function windowUrgent(address) { return false; }
+        function globalPosition(output, point) { return point; }
         property string language: "RU"
         property var data: {
             const output = Quickshell.screens[0].name;

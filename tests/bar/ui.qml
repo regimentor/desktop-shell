@@ -1,10 +1,11 @@
 import QtQuick
 import Quickshell
 import "runtime"
+import "desktop"
 
 ShellRoot {
     id: root
-    HyprlandState { id: barState }
+    DesktopState { id: barState }
     AppIconResolver { id: iconResolver }
     SystemClock { id: wallClock; precision: SystemClock.Minutes }
     Variants {

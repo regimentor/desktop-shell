@@ -1,13 +1,14 @@
 import QtQuick
 import Quickshell
 import "runtime"
-import "runtime/StateModel.js" as Model
+import "desktop"
+import "desktop/StateModel.js" as Model
 
 ShellRoot {
     id: root
     property int stage: 0
     property var originalKeyboard: null
-    HyprlandState {
+    DesktopState {
         id: state
         onErrorChanged: if (error) console.error("COMMAND_FAIL", error)
     }

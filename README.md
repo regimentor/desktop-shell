@@ -1,104 +1,103 @@
 # Daevox Shell
 
-Панель: [запуск, устройство и проверки](docs/bar.md).
-Установка панели: `./install-bar.sh`. Launcher и панель запускаются независимо.
+Панель, лаунчер и включаемые уведомления работают в одном процессе Quickshell.
+Проверяемая платформа: Quickshell 0.3.1, Qt 6.11.2, Hyprland 0.56.2 и UWSM.
 
-# Daevox launcher
+[Архитектура](docs/architecture.md) · [Панель](docs/bar.md) ·
+[Уведомления](docs/notifications.md) · [Снимок исходников](docs/launcher-source.md)
 
-Отдельное приложение Quickshell для Hyprland. Проверено на Quickshell 0.3.1,
-Qt 6.11.2, Hyprland 0.56.2 и активной UWSM-сессии.
+## Установка и запуск
 
-[Полный код всех файлов без сокращений](docs/launcher-source.md) ·
-[Подробная документация](docs/launcher.md)
-
-## Файлы
-
-```text
-launcher/
-├── shell.qml
-├── Launcher.qml
-├── AppModel.qml
-├── AudioModel.qml
-├── AudioRouter.qml
-├── AudioMath.js
-├── AudioControls.qml
-├── AudioPane.qml
-├── Theme.qml
-└── .qmlls.ini
-docs/examples/
-├── daevox-launcher.service
-└── hyprland-launcher.lua
-```
-
-## Зависимости и ручная проверка
-
-Из корня репозитория, в терминале графической сессии:
+В терминале активной графической сессии, от обычного пользователя:
 
 ```bash
-# Только если пакеты отсутствуют; -Syu избегает частичного обновления Arch.
-sudo pacman -Syu --needed quickshell qt6-declarative qt6-svg uwsm ghostty
-# Необязательно: fallback-тема, если текущая тема не содержит нужных иконок.
-sudo pacman -S --needed adwaita-icon-theme
-
-qs --version
-qs --no-duplicate --path ./launcher/shell.qml
+sudo pacman -Syu --needed quickshell qt6-declarative qt6-base qt6-svg uwsm ghostty adwaita-icon-theme base-devel wayland
+./install-shell.sh
 ```
 
-Процесс остаётся в терминале, окно изначально скрыто. Из второго терминала:
+Установщик работает из любого каталога. Собирает нативный модуль и проверяет
+QML до остановки сервисов, затем активирует `daevox-shell.service` и проверяет
+`launcher status`. При ошибке активации восстанавливает прежние файлы и запуск.
+Нужна активная графическая сессия: без неё установщик завершится без изменения
+работающих конфигураций, поскольку проверить активацию нельзя.
+
+Установленная копия `~/.config/quickshell/daevox-shell/` содержит `shell.qml`,
+`desktop/`, `bar/`, `launcher/audio/`, `notifications/`, `shared/` и
+`Daevox/Notifications/`. Она не зависит от checkout и старых каталогов.
+Прототипы, тесты и исходники C++ не устанавливаются. При повторной установке
+предыдущий runtime сохраняется в `~/.config/quickshell/daevox-shell-backup-*/runtime`.
+
+После успешного перехода старые сервисы отключаются и их известные файлы
+удаляются. История уведомлений, неизвестные файлы, общая старая тема и drop-in
+настройки сохраняются; их пути выводятся. Применимые `Environment` и внешние
+`EnvironmentFile` переносятся, окружение лаунчера имеет приоритет над панелью,
+существующий unified unit — над обоими. `QML_IMPORT_PATH` указывает на новый корень и закреплён также в ExecStart.
+Существующая D-Bus-активация старого лаунчера перенаправляется на единый сервис;
+её прежние байты сохраняются для восстановления. Drop-in файлы сохраняются
+на старых путях, но выполняются только перенесённые параметры окружения.
+Уведомления остаются выключенными, если ранее не были явно включены.
+Для установки используется только `install-shell.sh`.
+
+Перед установкой завершите вручную запущенные копии устанавливаемых конфигураций.
+Установщик обнаруживает такие процессы и останавливает переход, сохраняя их файлы.
+Конфигурация Hyprland автоматически не редактируется: удалите старые автозапуски
+панели/лаунчера и замените путь горячей клавиши на единый `shell.qml`.
 
 ```bash
-qs ipc --path ./launcher/shell.qml call launcher toggle
-qs ipc --path ./launcher/shell.qml call launcher status
-qs ipc --path ./launcher/shell.qml call launcher close
+systemctl --user status daevox-shell.service
+systemctl --user restart daevox-shell.service
+qs ipc --path "$HOME/.config/quickshell/daevox-shell/shell.qml" call launcher toggle
+qs ipc --path "$HOME/.config/quickshell/daevox-shell/shell.qml" call launcher status
 ```
 
-`open` открывает Apps с пустым запросом, в том числе при повторном вызове.
-`close` идемпотентен. Закрытие окна сохраняет процесс и модель.
-`--no-duplicate` защищает от повторного запуска той же конфигурации.
-IPC запускает краткоживущий клиент `qs`, но не второй QML runtime.
+Сервис привязан к `graphical-session.target`; дополнительный `exec-once` не нужен.
+Перезапуск затрагивает панель, лаунчер и приём уведомлений. Закрытие окна лаунчера
+сохраняет процесс, его модели и сервер уведомлений.
 
-## Установка и автозапуск
-
-Для установки или обновления запустите от обычного пользователя, без sudo:
+Для ручного запуска из репозитория сначала завершите установленную оболочку:
 
 ```bash
-./install-launcher.sh
+bash native/notifications/build.sh "$PWD/Daevox/Notifications"
+QML_IMPORT_PATH="$PWD" qs --no-duplicate --log-rules quickshell.io.socket.warning=false --path ./shell.qml
+qs ipc --path ./shell.qml call launcher open
+qs ipc --path ./shell.qml call launcher notifications
+qs ipc --path ./shell.qml call launcher close
 ```
 
-Скрипт работает из любой директории, проверяет зависимости, устанавливает
-файлы и включает user-service. В активной графической сессии launcher будет
-перезапущен; иначе запустится при следующем входе. Lua bind выводится в
-терминал. `--help` показывает справку.
+`open` и `toggle` при открытии выбирают Apps. `notifications` выбирает центр;
+при отключённом модуле он показывает сообщение об отсутствии уведомлений.
+`status` сохраняет прежние поля JSON. IPC создаёт только краткоживущий клиент.
+Сервер уведомлений создаётся исключительно при `DAEVOX_NOTIFICATIONS=1`.
 
-Установщик также доставляет `shared/DaevoxTheme.qml` и создаёт ссылку
-`daevox-launcher/shared → ../shared`. При ручном копировании нужно сохранить
-эту структуру; предпочтительно повторно запустить `install-launcher.sh`.
-
-Юнит привязан к `graphical-session.target`: UWSM подготавливает окружение
-Wayland, systemd запускает один процесс и останавливает его вместе с сессией.
-Запускать `enable --now` следует внутри уже работающей UWSM-сессии.
-`RestartSec` — задержка восстановления после сбоя, не ожидание готовности сессии.
-Дополнительный `exec-once` не нужен.
-
-При обновлении повторите копирование файлов и:
+## Удаление старых модулей
 
 ```bash
-systemctl --user restart daevox-launcher.service
+./uninstall-legacy.sh --help
+./uninstall-legacy.sh all --dry-run
+./uninstall-legacy.sh bar
+./uninstall-legacy.sh launcher
+./uninstall-legacy.sh all
 ```
+
+Скрипт запускается без sudo из любого каталога. Удаляет выбранные старые units
+и только файлы из явных manifests, не следует символическим ссылкам. Повторное
+удаление и отсутствующие модули допустимы. Неизвестные файлы, drop-in настройки,
+история, соседний `shared/`, новая установка и mako сохраняются. При ручном
+экземпляре или ошибке systemd скрипт сообщает причину и не удаляет используемые
+файлы. `--dry-run` выполняет только чтение и вывод плана.
 
 ## Hyprland Lua
 
-Добавьте содержимое `docs/examples/hyprland-launcher.lua` в свой Lua-конфиг:
+Добавьте пример из `docs/examples/hyprland-launcher.lua`, заменив прежний bind:
 
 ```lua
 hl.bind("SUPER + Space", hl.dsp.exec_cmd(
-    'qs ipc --path "$HOME/.config/quickshell/daevox-launcher/shell.qml" call launcher toggle'
+    'qs ipc --path "$HOME/.config/quickshell/daevox-shell/shell.qml" call launcher toggle'
 ))
 ```
 
-Затем `hyprctl reload`. Уберите прежний bind на Super+Space, если он есть.
-Для проверки без установки замените путь в команде на абсолютный путь к
-`launcher/shell.qml` в репозитории.
+Затем выполните `hyprctl reload`. Для запуска из checkout используйте абсолютный
+путь к его корневому `shell.qml`.
 
 ## Ghostty и desktop entries
 
@@ -201,7 +200,7 @@ WirePlumber; лаунчер не хранит настройки звука на
 ```bash
 node tests/audio/math.test.cjs
 /usr/lib/qt6/bin/qmllint -I /usr/lib/qt6/qml launcher/*.qml tests/audio/*.qml
-bash -n install-launcher.sh tests/audio/run-session.sh
+bash -n install-shell.sh tests/audio/run-session.sh
 dbus-run-session -- bash tests/audio/run-session.sh
 # В активной Hyprland-сессии; кратко открывает тестовое окно.
 dbus-run-session -- bash tests/audio/run-session.sh ui
@@ -255,13 +254,13 @@ Wayland surface. Esc и IPC close доступны независимо от з�
 ## Диагностика
 
 ```bash
-systemctl --user status daevox-launcher.service
-journalctl --user -u daevox-launcher.service -b -n 80
+systemctl --user status daevox-shell.service
+journalctl --user -u daevox-shell.service -b -n 80
 qs list
-qs ipc --path "$HOME/.config/quickshell/daevox-launcher/shell.qml" show
-qs ipc --path "$HOME/.config/quickshell/daevox-launcher/shell.qml" call launcher status
-qs ipc --path "$HOME/.config/quickshell/daevox-launcher/shell.qml" call launcher open
-qs log --path "$HOME/.config/quickshell/daevox-launcher/shell.qml" -t 80
+qs ipc --path "$HOME/.config/quickshell/daevox-shell/shell.qml" show
+qs ipc --path "$HOME/.config/quickshell/daevox-shell/shell.qml" call launcher status
+qs ipc --path "$HOME/.config/quickshell/daevox-shell/shell.qml" call launcher open
+qs log --path "$HOME/.config/quickshell/daevox-shell/shell.qml" -t 80
 hyprctl layers
 hyprctl configerrors
 systemctl --user is-active graphical-session.target
@@ -286,13 +285,31 @@ systemctl --user show-environment | rg '^(WAYLAND_DISPLAY|HYPRLAND_INSTANCE_SIGN
 
 ## Проверки реализации
 
-В реальной Wayland-сессии выполнены QtTest-проверки ранжирования по нескольким
-полям, регистра и кириллицы, фокуса, клавиш, пустой выдачи, Enter/Esc и десяти
-циклов toggle. Четыре временные desktop entries проверили `%U/%u/%F/%f`,
-`%i/%c/%k`, quoting и Path через настоящий UWSM. Проверены отрисовка и
-защита от дубликатов. Пользовательские bind и автозапуск автоматически не
-изменялись. Клик снаружи и физическая клавиатура EN/RU требуют ручной
-приёмки; тесты проверяли Qt key events и обработку nativeScanCode.
+```bash
+node tests/desktop/model.test.cjs
+python3 tests/desktop/transport.test.py
+QT_QPA_PLATFORM=offscreen timeout 5 qs --path tests/desktop/screen-selection.qml
+node tests/audio/math.test.cjs
+node tests/notifications/state.test.cjs
+python3 tests/install/install.test.py
+python3 tests/install/cli.test.py
+python3 tests/install/process.test.py
+python3 tests/notifications/migration.test.py
+bash tests/notifications/run.sh
+dbus-run-session -- bash tests/audio/run-session.sh
+# Кратко показывают тестовые окна в графической сессии:
+bash tests/bar/run.sh
+bash tests/shell/run.sh
+bash tests/shell/run.sh --repository
+bash tests/notifications/run.sh --wayland
+dbus-run-session -- bash tests/audio/run-session.sh ui
+```
+
+Тесты установки используют временный HOME и подставной systemctl. Протокол
+уведомлений проверяется на отдельной D-Bus шине. Тест звука создаёт собственный
+PipeWire с виртуальными выходами. UI-тесты кратко показывают окна в текущей
+Wayland-сессии. Физический hotplug, меню реальных tray-приложений и повторный
+вход в пользовательскую сессию проверяются отдельно.
 
 ## Проверенные API и источники
 

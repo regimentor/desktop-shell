@@ -1,0 +1,12 @@
+AppIconResolver.qml
+Bar.qml
+HyprlandIpc.qml
+HyprlandState.qml
+StateModel.js
+Theme.qml
+Tray.qml
+WorkspaceStrip.qml
+application.svg
+shell.qml
+.qmlls.ini
+shared

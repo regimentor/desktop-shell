@@ -9,6 +9,9 @@ ShellRoot {
     Theme { id: theme }
     QtObject {
         id: fixture
+        function windowActive(address) { return false; }
+        function windowUrgent(address) { return false; }
+        function globalPosition(output, point) { return {x: point.x - 2560, y: point.y}; }
         property int active: 1
         property var data: ({ monitors: [{ name: "test", x: -2560, y: 0 }], urgent: {}, active: "" })
         function groups(output) {

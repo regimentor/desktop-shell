@@ -2,10 +2,12 @@ import QtQuick
 import QtTest
 import Quickshell
 import "../../launcher"
+import "../../desktop"
 
 ShellRoot {
     id: root
-    Launcher { id: launcher }
+    DesktopState { id: desktopState }
+    Launcher { desktop: desktopState; id: launcher }
     TestCase { id: tester; name: "Audio UI"; parent: launcher.contentItem; when: false }
     property int stage: 0
     property int ticks: 0
@@ -44,7 +46,7 @@ ShellRoot {
                     const volumeTab = tester.findChild(launcher.contentItem, "mode-audio");
                     const panel = tester.findChild(launcher.contentItem, "launcherPanel");
                     root.check(appsTab.mapToItem(launcher.contentItem, 0, 0).x === panel.x, "tabs align with panel left edge");
-                    root.check(volumeTab.text === "♪ Volume", "Volume tab label");
+                    root.check(volumeTab.text === "" && volumeTab.label === "Звук", "icon-only Volume tab with accessible label");
                     tester.keyClick(Qt.Key_O, Qt.AltModifier);
                     root.check(root.pane.pickerOpen, "system output picker opens");
                     root.chosenOutput = root.pane.audio.outputs.find(output => output !== root.pane.audio.defaultOutput);

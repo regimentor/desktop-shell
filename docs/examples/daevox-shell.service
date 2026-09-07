@@ -1,0 +1,18 @@
+[Unit]
+Description=Daevox Shell (Quickshell)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=exec
+TimeoutStartSec=15
+TimeoutStopSec=15
+Environment=DAEVOX_NOTIFICATIONS=0
+Environment=QML_IMPORT_PATH=%h/.config/quickshell/daevox-shell
+ExecStart=/usr/bin/env QML_IMPORT_PATH=%h/.config/quickshell/daevox-shell /usr/bin/qs --no-duplicate --log-rules quickshell.io.socket.warning=false --path %h/.config/quickshell/daevox-shell/shell.qml
+Restart=on-failure
+RestartSec=1
+Slice=app-graphical.slice
+
+[Install]
+WantedBy=graphical-session.target
