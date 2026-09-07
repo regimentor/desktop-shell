@@ -15,7 +15,22 @@ PanelWindow {
     property string mode: "apps"
     property var notifications: null
     readonly property real panelTop: modes.y + modes.height + 4
-    visible: false
+    property bool opened: false
+    property real reveal: 0
+    property real modeReveal: 1
+    visible: opened || reveal > 0
+    NumberAnimation {
+        id: revealAnimation
+        target: root; property: "reveal"
+        easing.type: Easing.OutCubic
+    }
+    NumberAnimation {
+        id: modeAnimation
+        target: root; property: "modeReveal"
+        from: 0; to: 1
+        duration: theme.motionNormal
+        easing.type: Easing.OutCubic
+    }
     color: theme.transparent
     exclusionMode: ExclusionMode.Ignore
     implicitWidth: Math.min(theme.windowWidth, screen.width - 2 * theme.spacing)
@@ -23,6 +38,7 @@ PanelWindow {
         + theme.footerHeight + 2.5 * theme.spacing, screen.height - 2 * theme.spacing)
     WlrLayershell.namespace: "daevox-launcher"
     WlrLayershell.layer: WlrLayer.Overlay
+    // Keep the layer focus stable through exit so reopening cannot clear a new grab.
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     mask: Region {
         item: panel
@@ -40,11 +56,12 @@ PanelWindow {
     }
     Connections {
         target: root.notifications
-        function onBlockedChanged() { if (root.notifications.blocked) root.close(); }
+        function onBlockedChanged() { if (root.notifications.blocked) root.closeImmediately(); }
     }
     HyprlandFocusGrab {
-        id: grab
+        objectName: "launcherFocusGrab"
         windows: [root]
+        active: root.opened
         onCleared: root.close()
     }
 
@@ -56,36 +73,52 @@ PanelWindow {
         if (!target) return;
         screen = target;
         search.text = "";
-        mode = ["apps", "audio", "notifications"].includes(value) ? value : "apps";
+        const nextMode = ["apps", "audio", "notifications"].includes(value) ? value : "apps";
+        if (opened && mode !== nextMode) modeAnimation.restart();
+        mode = nextMode;
         if (notificationPane.item) notificationPane.item.cancelReply();
         if (mode === "audio") router.check();
         audioPane.reset();
         apps.error = "";
         resetSelection();
-        visible = true;
+        opened = true;
+        animateReveal(1);
         search.forceActiveFocus();
-        grab.active = true;
     }
 
     Connections {
         target: Quickshell
         function onScreensChanged() {
             if (!Quickshell.screens.includes(root.screen)) {
-                root.close();
+                root.closeImmediately();
                 root.screen = root.desktop.screenFor(Quickshell.screens);
             }
         }
     }
 
+    function animateReveal(target: real): void {
+        revealAnimation.stop();
+        revealAnimation.to = target;
+        revealAnimation.duration = target === 1 ? theme.motionEnter : theme.motionExit;
+        revealAnimation.start();
+    }
+
     function close(): void {
+        if (!opened) return;
         if (notificationPane.item) notificationPane.item.cancelReply();
-        audioPane.reset();
-        grab.active = false;
-        visible = false;
+        opened = false;
+        animateReveal(0);
+    }
+
+    // Lock and screen removal must hide content without an exit transition.
+    function closeImmediately(): void {
+        close();
+        revealAnimation.stop();
+        reveal = 0;
     }
 
     function toggle(): void {
-        if (visible) close();
+        if (opened) close();
         else open();
     }
 
@@ -167,6 +200,8 @@ PanelWindow {
     }
 
     function switchMode(value: string): void {
+        if (value === mode) return;
+        modeAnimation.restart();
         if (notificationPane.item) notificationPane.item.cancelReply();
         mode = value;
         search.text = "";
@@ -176,238 +211,263 @@ PanelWindow {
         if (value === "audio") router.check();
     }
 
-    Row {
-        id: modes
-        anchors.top: parent.top
-        anchors.topMargin: theme.spacing
-        anchors.left: panel.left
-        spacing: 8
-        Repeater {
-            model: [{ mode: "apps", icon: "apps", label: "Приложения" },
-                { mode: "audio", icon: "volume", label: "Звук" },
-                { mode: "notifications", icon: "bell", label: "Уведомления" }]
-            delegate: Shared.IconButton {
-                id: modeButton
-                shadowEnabled: true
-                required property var modelData
-                objectName: "mode-" + modelData.mode
-                theme: theme
-                iconName: modelData.icon
-                label: modelData.label
-                active: root.mode === modelData.mode
-                onClicked: root.switchMode(modelData.mode)
-                Keys.priority: Keys.BeforeItem
-                Keys.onPressed: event => root.handleKey(event, false)
+    Item {
+        id: presentation
+        anchors.fill: parent
+        enabled: root.opened
+        opacity: root.reveal
+        transform: Translate { y: -8 * (1 - root.reveal) }
+
+        Row {
+            id: modes
+            anchors.top: parent.top
+            anchors.topMargin: theme.spacing
+            anchors.left: panel.left
+            spacing: 8
+            Repeater {
+                model: [{ mode: "apps", icon: "apps", label: "Приложения" },
+                    { mode: "audio", icon: "volume", label: "Звук" },
+                    { mode: "notifications", icon: "bell", label: "Уведомления" }]
+                delegate: Shared.IconButton {
+                    id: modeButton
+                    shadowEnabled: true
+                    required property var modelData
+                    objectName: "mode-" + modelData.mode
+                    theme: theme
+                    iconName: modelData.icon
+                    label: modelData.label
+                    active: root.mode === modelData.mode
+                    onClicked: root.switchMode(modelData.mode)
+                    Keys.priority: Keys.BeforeItem
+                    Keys.onPressed: event => root.handleKey(event, false)
+                }
             }
         }
-    }
 
-    // A small static shadow keeps the MVP free of shader effects and animation.
-    Rectangle {
-        anchors.fill: panel
-        anchors.margins: -3
-        anchors.topMargin: 0
-        anchors.bottomMargin: -6
-        radius: theme.radius + 3
-        color: theme.shadow
-    }
-    Rectangle {
-        id: panel
-        objectName: "launcherPanel"
-        anchors.fill: parent
-        anchors.margins: theme.spacing
-        anchors.topMargin: root.panelTop
-        color: theme.background
-        radius: theme.radius
-        border.color: theme.border
-
-        TextField {
-            id: search
-            objectName: "launcherSearch"
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.margins: theme.spacing
-            height: theme.searchHeight - 2 * theme.spacing
-            padding: 0
-            font.family: theme.fontFamily
-            font.pixelSize: theme.searchFontSize
-            color: theme.text
-            placeholderText: root.mode === "notifications" ? "Поиск уведомлений…" : root.mode === "audio" ? "Поиск звуковых приложений…" : "Search applications…"
-            placeholderTextColor: theme.textMuted
-            selectionColor: theme.accent
-            selectedTextColor: theme.background
-            background: Item {}
-            focus: true
-            selectByMouse: true
-            activeFocusOnTab: root.mode !== "apps"
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: event => root.handleKey(event, true)
+        // The shadow moves with the launcher surface.
+        Rectangle {
+            anchors.fill: panel
+            anchors.margins: -3
+            anchors.topMargin: 0
+            anchors.bottomMargin: -6
+            radius: theme.radius + 3
+            color: theme.shadow
         }
         Rectangle {
-            anchors.top: parent.top
-            anchors.topMargin: theme.searchHeight
-            width: parent.width
-            height: 1
-            color: theme.border
-        }
-        ListView {
-            id: list
-            visible: root.mode === "apps"
-            anchors.top: parent.top
-            anchors.topMargin: theme.searchHeight + theme.spacing / 2
-            anchors.bottom: footer.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: theme.spacing / 2
-            anchors.rightMargin: theme.spacing / 2
-            clip: true
-            model: apps.results
-            currentIndex: -1
-            boundsBehavior: Flickable.StopAtBounds
-            highlightMoveDuration: 0
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            id: panel
+            objectName: "launcherPanel"
+            anchors.fill: parent
+            anchors.margins: theme.spacing
+            anchors.topMargin: root.panelTop
+            color: theme.background
+            radius: theme.radius
+            border.color: theme.border
 
-            delegate: Rectangle {
-                id: row
-                required property var modelData
-                required property int index
-                width: ListView.view.width
-                height: theme.rowHeight
-                radius: theme.radius / 2
-                color: ListView.isCurrentItem ? theme.surface : theme.transparent
-                Image {
-                    id: icon
-                    anchors.left: parent.left
-                    anchors.leftMargin: theme.spacing
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: theme.iconSize
-                    height: theme.iconSize
-                    sourceSize.width: width * root.devicePixelRatio
-                    sourceSize.height: height * root.devicePixelRatio
-                    source: Quickshell.iconPath(row.modelData.icon, true)
-                        || Quickshell.iconPath("application-x-executable", true)
-                    fillMode: Image.PreserveAspectFit
-                    Text {
-                        anchors.centerIn: parent
-                        visible: icon.status !== Image.Ready
-                        text: row.modelData.name.charAt(0).toUpperCase()
-                        color: theme.accent
-                        font.family: theme.fontFamily
-                        font.pixelSize: theme.searchFontSize
+            TextField {
+                id: search
+                objectName: "launcherSearch"
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.margins: theme.spacing
+                height: theme.searchHeight - 2 * theme.spacing
+                padding: 0
+                font.family: theme.fontFamily
+                font.pixelSize: theme.searchFontSize
+                color: theme.text
+                placeholderText: root.mode === "notifications" ? "Поиск уведомлений…" : root.mode === "audio" ? "Поиск звуковых приложений…" : "Search applications…"
+                placeholderTextColor: theme.textMuted
+                selectionColor: theme.accent
+                selectedTextColor: theme.background
+                background: Item {}
+                focus: true
+                selectByMouse: true
+                activeFocusOnTab: root.mode !== "apps"
+                Keys.priority: Keys.BeforeItem
+                Keys.onPressed: event => root.handleKey(event, true)
+            }
+            Rectangle {
+                anchors.top: parent.top
+                anchors.topMargin: theme.searchHeight
+                width: parent.width
+                height: 1
+                color: theme.border
+            }
+            ListView {
+                id: list
+                visible: root.mode === "apps"
+                opacity: root.modeReveal
+                transform: Translate { y: 4 * (1 - root.modeReveal) }
+                anchors.top: parent.top
+                anchors.topMargin: theme.searchHeight + theme.spacing / 2
+                anchors.bottom: footer.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.leftMargin: theme.spacing / 2
+                anchors.rightMargin: theme.spacing / 2
+                clip: true
+                model: apps.results
+                currentIndex: -1
+                boundsBehavior: Flickable.StopAtBounds
+                highlightMoveDuration: theme.motionQuick
+                highlightResizeDuration: 0
+                highlight: Rectangle {
+                    radius: theme.radius / 2
+                    color: theme.surface
+                }
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                delegate: Rectangle {
+                    id: row
+                    required property var modelData
+                    required property int index
+                    width: ListView.view.width
+                    height: theme.rowHeight
+                    radius: theme.radius / 2
+                    color: rowMouse.containsMouse && !ListView.isCurrentItem ? theme.surface : theme.transparent
+                    opacity: rowMouse.pressed ? 0.8 : 1
+                    Behavior on color { ColorAnimation { duration: theme.motionQuick } }
+                    Behavior on opacity { NumberAnimation { duration: theme.motionQuick } }
+                    Image {
+                        id: icon
+                        anchors.left: parent.left
+                        anchors.leftMargin: theme.spacing
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: theme.iconSize
+                        height: theme.iconSize
+                        sourceSize.width: width * root.devicePixelRatio
+                        sourceSize.height: height * root.devicePixelRatio
+                        source: Quickshell.iconPath(row.modelData.icon, true)
+                            || Quickshell.iconPath("application-x-executable", true)
+                        fillMode: Image.PreserveAspectFit
+                        Text {
+                            anchors.centerIn: parent
+                            visible: icon.status !== Image.Ready
+                            text: row.modelData.name.charAt(0).toUpperCase()
+                            color: theme.accent
+                            font.family: theme.fontFamily
+                            font.pixelSize: theme.searchFontSize
+                        }
+                    }
+                    Column {
+                        anchors.left: icon.right
+                        anchors.leftMargin: theme.spacing
+                        anchors.right: parent.right
+                        anchors.rightMargin: theme.spacing
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 2
+                        Text {
+                            width: parent.width
+                            text: row.modelData.name
+                            color: theme.text
+                            font.family: theme.fontFamily
+                            font.pixelSize: theme.fontSize
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            width: parent.width
+                            text: row.modelData.genericName || row.modelData.comment
+                            visible: text.length > 0
+                            color: theme.textMuted
+                            font.family: theme.fontFamily
+                            font.pixelSize: theme.smallFontSize
+                            elide: Text.ElideRight
+                        }
+                    }
+                    MouseArea {
+                        id: rowMouse
+                        cursorShape: Qt.PointingHandCursor
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            list.currentIndex = row.index;
+                            apps.launch(row.index);
+                        }
                     }
                 }
-                Column {
-                    anchors.left: icon.right
-                    anchors.leftMargin: theme.spacing
-                    anchors.right: parent.right
-                    anchors.rightMargin: theme.spacing
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 2
-                    Text {
-                        width: parent.width
-                        text: row.modelData.name
-                        color: theme.text
-                        font.family: theme.fontFamily
-                        font.pixelSize: theme.fontSize
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        width: parent.width
-                        text: row.modelData.genericName || row.modelData.comment
-                        visible: text.length > 0
-                        color: theme.textMuted
-                        font.family: theme.fontFamily
-                        font.pixelSize: theme.smallFontSize
-                        elide: Text.ElideRight
-                    }
+                Text {
+                    anchors.centerIn: parent
+                    visible: list.count === 0
+                    text: search.text.trim() ? "No matching applications" : "No applications found"
+                    color: theme.textMuted
+                    font.family: theme.fontFamily
+                    font.pixelSize: theme.fontSize
                 }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        list.currentIndex = row.index;
-                        apps.launch(row.index);
-                    }
+            }
+            AudioPane {
+                id: audioPane
+                objectName: "audioPane"
+                visible: root.mode === "audio"
+                opacity: root.modeReveal
+                transform: Translate { y: 4 * (1 - root.modeReveal) }
+                anchors.top: parent.top
+                anchors.topMargin: theme.searchHeight + theme.spacing / 2
+                anchors.bottom: footer.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.leftMargin: theme.spacing / 2
+                anchors.rightMargin: theme.spacing / 2
+                theme: theme
+                audio: audio
+                router: router
+                query: search.text
+                keyHandler: event => root.handleKey(event, false)
+            }
+            Loader {
+                id: notificationPane
+                active: root.notifications !== null
+                visible: root.mode === "notifications"
+                opacity: root.modeReveal
+                transform: Translate { y: 4 * (1 - root.modeReveal) }
+                anchors.top: parent.top; anchors.topMargin: theme.searchHeight + 8
+                anchors.bottom: footer.top; anchors.bottomMargin: 8
+                anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+                sourceComponent: Notifications.NotificationPane {
+                    theme: theme; notifications: root.notifications; query: search.text
+                    visible: root.mode === "notifications"
+                    keyHandler: event => root.handleKey(event, false)
+                    onSearchFocusRequested: search.forceActiveFocus()
                 }
             }
             Text {
                 anchors.centerIn: parent
-                visible: list.count === 0
-                text: search.text.trim() ? "No matching applications" : "No applications found"
-                color: theme.textMuted
-                font.family: theme.fontFamily
-                font.pixelSize: theme.fontSize
+                visible: root.mode === "notifications" && !root.notifications
+                text: "Уведомления ещё не включены"
+                color: theme.textMuted; font.family: theme.fontFamily; font.pixelSize: theme.fontSize
             }
-        }
-        AudioPane {
-            id: audioPane
-            objectName: "audioPane"
-            visible: root.mode === "audio"
-            anchors.top: parent.top
-            anchors.topMargin: theme.searchHeight + theme.spacing / 2
-            anchors.bottom: footer.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: theme.spacing / 2
-            anchors.rightMargin: theme.spacing / 2
-            theme: theme
-            audio: audio
-            router: router
-            query: search.text
-            keyHandler: event => root.handleKey(event, false)
-        }
-        Loader {
-            id: notificationPane
-            active: root.notifications !== null
-            visible: root.mode === "notifications"
-            anchors.top: parent.top; anchors.topMargin: theme.searchHeight + 8
-            anchors.bottom: footer.top; anchors.bottomMargin: 8
-            anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
-            sourceComponent: Notifications.NotificationPane {
-                theme: theme; notifications: root.notifications; query: search.text
-                visible: root.mode === "notifications"
-                keyHandler: event => root.handleKey(event, false)
-                onSearchFocusRequested: search.forceActiveFocus()
-            }
-        }
-        Text {
-            anchors.centerIn: parent
-            visible: root.mode === "notifications" && !root.notifications
-            text: "Уведомления ещё не включены"
-            color: theme.textMuted; font.family: theme.fontFamily; font.pixelSize: theme.fontSize
-        }
-        Item {
-            id: footer
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.margins: theme.spacing
-            height: theme.footerHeight - theme.spacing
-            Text {
+            Item {
+                id: footer
+                anchors.bottom: parent.bottom
                 anchors.left: parent.left
-                anchors.right: layoutIndicator.left
-                anchors.rightMargin: theme.spacing
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.mode === "notifications" ? ((root.notifications ? root.notifications.error : "") || "↑ ↓ Выбор · Enter Открыть · Backspace Удалить")
-                    : root.mode === "audio" ? (router.unavailableReason || "← → Громкость · Alt+M Mute · Alt+O Выход · Enter Потоки")
-                    : apps.error || (apps.launching ? "Launching…" : "↑ ↓  Navigate     Enter: Launch     Esc: Close")
-                color: apps.error ? theme.accent : theme.textMuted
-                font.family: theme.fontFamily
-                font.pixelSize: theme.smallFontSize
-                elide: Text.ElideRight
-            }
-            Text {
-                id: layoutIndicator
-                objectName: "keyboardLayoutIndicator"
                 anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.min(implicitWidth, parent.width / 4)
-                text: root.desktop.language
-                color: theme.accent
-                font.family: theme.fontFamily
-                font.pixelSize: theme.smallFontSize
-                elide: Text.ElideRight
-                Accessible.name: "Текущая раскладка: " + text
+                anchors.margins: theme.spacing
+                height: theme.footerHeight - theme.spacing
+                Text {
+                    anchors.left: parent.left
+                    anchors.right: layoutIndicator.left
+                    anchors.rightMargin: theme.spacing
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.mode === "notifications" ? ((root.notifications ? root.notifications.error : "") || "↑ ↓ Выбор · Enter Открыть · Backspace Удалить")
+                        : root.mode === "audio" ? (router.unavailableReason || "← → Громкость · Alt+M Mute · Alt+O Выход · Enter Потоки")
+                        : apps.error || (apps.launching ? "Launching…" : "↑ ↓  Navigate     Enter: Launch     Esc: Close")
+                    color: apps.error ? theme.accent : theme.textMuted
+                    font.family: theme.fontFamily
+                    font.pixelSize: theme.smallFontSize
+                    elide: Text.ElideRight
+                }
+                Text {
+                    id: layoutIndicator
+                    objectName: "keyboardLayoutIndicator"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, parent.width / 4)
+                    text: root.desktop.language
+                    color: theme.accent
+                    font.family: theme.fontFamily
+                    font.pixelSize: theme.smallFontSize
+                    elide: Text.ElideRight
+                    Accessible.name: "Текущая раскладка: " + text
+                }
             }
         }
     }

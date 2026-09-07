@@ -139,6 +139,7 @@ Item {
                     Rectangle { visible: stack.cover; x: 6; y: 6; width: parent.width - 12; height: parent.height - 12; radius: 10; color: root.theme.surface; border.color: root.theme.border }
                     HoverHandler { id: stackHover }
                     Button {
+                        HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
                         width: parent.width; height: stack.cover ? parent.height - 12 : parent.height
                         padding: 8
                         background: Rectangle {

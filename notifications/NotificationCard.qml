@@ -61,6 +61,7 @@ Rectangle {
             }
         }
         Button {
+            HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
             width: parent.width
             padding: 0
             background: Item {}
@@ -82,6 +83,7 @@ Rectangle {
             color: root.theme.textMuted; font.family: root.theme.fontFamily
             font.pixelSize: root.theme.smallFontSize - 1
             wrapMode: Text.Wrap; maximumLineCount: root.expanded ? 1000 : 3; elide: Text.ElideRight
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
             TapHandler { onTapped: { root.selectedByMouse(); root.activate(); } }
         }
         Flow {

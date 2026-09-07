@@ -3,6 +3,7 @@ import QtQuick.Controls
 
 Button {
     id: root
+    HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
     required property var theme
     font.family: theme.fontFamily
     font.pixelSize: theme.smallFontSize

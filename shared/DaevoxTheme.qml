@@ -1,6 +1,11 @@
 import QtQuick
 
 QtObject {
+    readonly property int motionQuick: 100
+    readonly property int motionNormal: 150
+    readonly property int motionEnter: 180
+    readonly property int motionExit: 120
+
     // Catppuccin Mocha: base, surface0, text, subtext0, mauve, surface1, crust.
     readonly property string fontFamily: "Monoid"
     readonly property color background: "#1e1e2e"

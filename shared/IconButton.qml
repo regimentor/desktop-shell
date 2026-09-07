@@ -3,6 +3,7 @@ import QtQuick.Controls
 
 Button {
     id: root
+    HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
     required property var theme
     required property string iconName
     required property string label
@@ -11,6 +12,10 @@ Button {
     property bool shadowEnabled: false
     implicitWidth: iconSize + leftPadding + rightPadding
     implicitHeight: iconSize + topPadding + bottomPadding
+    scale: down ? 0.94 : 1
+    Behavior on scale {
+        NumberAnimation { duration: root.theme.motionQuick; easing.type: Easing.OutCubic }
+    }
     padding: 4
     text: ""
     Accessible.name: label
@@ -40,5 +45,7 @@ Button {
         radius: 8
         color: root.active || root.hovered || root.down ? root.theme.surface : root.theme.background
         border.color: root.activeFocus ? root.theme.accent : root.theme.border
+        Behavior on color { ColorAnimation { duration: root.theme.motionQuick } }
+        Behavior on border.color { ColorAnimation { duration: root.theme.motionQuick } }
     }
 }

@@ -50,6 +50,7 @@ Rectangle {
             }
             Button {
                 id: titleButton
+                HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
                 Layout.fillWidth: true
                 Layout.minimumWidth: 60
                 Layout.preferredHeight: 28
@@ -76,6 +77,7 @@ Rectangle {
             }
             Slider {
                 id: slider
+                HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
                 objectName: "volumeSlider"
                 Layout.preferredWidth: 150
                 Layout.preferredHeight: 28
@@ -126,6 +128,7 @@ Rectangle {
             }
             Button {
                 id: muteButton
+                HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
                 Layout.preferredWidth: 42
                 Layout.preferredHeight: 28
                 text: root.muteState === "muted" ? "×" : root.muteState === "mixed" ? "◐" : "♪"

@@ -285,6 +285,9 @@ systemctl --user show-environment | rg '^(WAYLAND_DISPLAY|HYPRLAND_INSTANCE_SIGN
 
 ## Проверки реализации
 
+Переходы лаунчера и повторное открытие во время закрытия: `bash tests/launcher/run.sh`
+(в графической сессии). Длительности переходов заданы в `shared/DaevoxTheme.qml`.
+
 ```bash
 node tests/desktop/model.test.cjs
 python3 tests/desktop/transport.test.py

@@ -111,6 +111,7 @@ Item {
     }
     Button {
         id: systemOutputButton
+        HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
         objectName: "systemOutputButton"
         anchors.top: system.bottom
         width: parent.width
@@ -176,6 +177,7 @@ Item {
             }
             Button {
                 id: outputButton
+                HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
                 width: parent.width
                 height: visible ? 24 : 0
                 visible: !row.modelData.node
@@ -243,6 +245,7 @@ Item {
             onCountChanged: currentIndex = Math.min(Math.max(0, currentIndex), count - 1)
             delegate: ItemDelegate {
                 id: device
+                HoverHandler { enabled: parent.enabled; cursorShape: Qt.PointingHandCursor }
                 required property var modelData
                 required property int index
                 width: ListView.view.width
