@@ -47,6 +47,17 @@ function reconcile(previous, s, events) {
         active: active ? active.address : "", keyboard: s.devices.keyboards.find(k => k.main) || s.devices.keyboards[0] || null,
         history: history, urgent: urgent };
 }
+function workspaceWindows(state, workspace) {
+    const windows = state.clients.filter(c => c.workspace.id === workspace.id);
+    if (workspace.tiledLayout !== "scrolling") return windows;
+    // Floating windows have no place in the scrolling tape. Keep their slots,
+    // and use stable order for ties or clients without usable geometry.
+    const positioned = c => !c.floating && Array.isArray(c.at)
+        && Number.isFinite(c.at[0]) && Number.isFinite(c.at[1]);
+    const tiled = windows.filter(positioned).sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+    let index = 0;
+    return windows.map(c => positioned(c) ? tiled[index++] : c);
+}
 function groups(state, output) {
     const monitor = state.monitors.find(m => m.name === output);
     if (!monitor) return [];
@@ -55,7 +66,7 @@ function groups(state, output) {
         workspaces.push({ id: monitor.activeWorkspace.id, name: monitor.activeWorkspace.name, monitor: output });
     const result = workspaces.map(w => ({ id: w.id, name: w.name, special: w.id < 0,
         active: w.id === monitor.activeWorkspace.id || w.id === monitor.specialWorkspace.id,
-        windows: state.clients.filter(c => c.workspace.id === w.id) }))
+        windows: workspaceWindows(state, w) }))
         .filter(w => !w.special || w.active || w.windows.length)
         .sort((a, b) => Number(a.special) - Number(b.special) || a.id - b.id);
     const specialCount = result.filter(w => w.special).length;

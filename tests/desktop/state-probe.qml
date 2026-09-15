@@ -11,12 +11,18 @@ ShellRoot {
         onErrorChanged: if (error) console.log("PROBE_ERROR", error)
         onReadyChanged: {
             console.log("PROBE_READY", ready);
+            if (ready && Quickshell.env("BAR_TEST_SOCKET_DIR"))
+                console.log("PROBE_ORDER", groups("DP-1")[0].windows.map(c => c.address).join(","));
             if (ready && Quickshell.env("BAR_TEST_COMMAND") && !sentCommand) {
                 sentCommand = true;
                 nextLayout();
             }
         }
-        onDataChanged: if (data.monitors.length) console.log("PROBE_DATA", JSON.stringify({ monitors: data.monitors.length, clients: data.clients.length, language: language, title: Quickshell.env("BAR_TEST_SOCKET_DIR") ? title("DP-1") : "" }))
+        onDataChanged: if (data.monitors.length) {
+            console.log("PROBE_DATA", JSON.stringify({ monitors: data.monitors.length, clients: data.clients.length, language: language, title: Quickshell.env("BAR_TEST_SOCKET_DIR") ? title("DP-1") : "" }));
+            if (ready && Quickshell.env("BAR_TEST_SOCKET_DIR"))
+                console.log("PROBE_ORDER", groups("DP-1")[0].windows.map(c => c.address).join(","));
+        }
     }
     Timer { interval: 2500; running: true; onTriggered: { console.log("PROBE_FINAL", state.ready); if (Quickshell.env("BAR_TEST_SOCKET_DIR")) console.log("PROBE_TITLE", state.title("DP-1")); Qt.quit(); } }
 }

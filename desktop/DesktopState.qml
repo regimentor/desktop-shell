@@ -60,6 +60,14 @@ Scope {
             command("/switchxkblayout " + data.keyboard.name + " next");
     }
     Timer { id: coalesce; interval: 40; onTriggered: root.refresh() }
+    // Scrolling swaps can change geometry without a socket2 event.
+    Timer {
+        interval: 500
+        repeat: true
+        running: root.ready && root.data.workspaces.some(w => w.tiledLayout === "scrolling"
+            && root.data.clients.filter(c => c.workspace.id === w.id && !c.floating).length > 1)
+        onTriggered: if (!root.loading) root.invalidate(["clients"])
+    }
     HyprlandIpc {
         id: ipc
         onOpened: root.refresh()

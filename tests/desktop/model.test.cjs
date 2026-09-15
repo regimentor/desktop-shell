@@ -61,3 +61,49 @@ assert.equal(model.commandSucceeded(''), false);
 const special = model.workspaceCommand({ special: true, name: 'special:a;[b]' });
 assert.ok(!special.includes(';') && !special.includes('[') && !special.includes(']'));
 console.log('PASS click batch: pointer coordinates, escaping and command acknowledgements');
+
+// Minimized from special:magic: IPC lists the right-hand window first.
+const scrolling = copy(snapshot);
+scrolling.workspaces[0].tiledLayout = 'scrolling';
+scrolling.clients[0].at = [2321, 57];
+scrolling.clients[1].at = [21, 57];
+scrolling.clients.forEach(c => { c.floating = false; });
+let scrollingState = model.reconcile(model.empty(), scrolling, []);
+const windowOrder = s => copy(model.groups(s, 'DP-1')[0].windows.map(c => c.address));
+assert.deepEqual(windowOrder(scrollingState), ['0xb', '0xa']);
+// Focus and viewport translation must not reorder icons.
+scrolling.activewindow.address = '0xb';
+scrolling.clients.forEach(c => { c.at[0] -= 2400; });
+scrolling.clients.reverse();
+scrollingState = model.reconcile(scrollingState, scrolling, []);
+assert.deepEqual(windowOrder(scrollingState), ['0xb', '0xa']);
+// Swapping positions must update the order even without open/focus events.
+scrolling.clients[0].at = [100, 57];
+scrolling.clients[1].at = [-100, 57];
+scrollingState = model.reconcile(scrollingState, scrolling, []);
+assert.deepEqual(windowOrder(scrollingState), ['0xa', '0xb']);
+// Within a column, read from top to bottom.
+scrolling.clients[0].at = [100, 10];
+scrolling.clients[1].at = [100, 500];
+scrollingState = model.reconcile(scrollingState, scrolling, []);
+assert.deepEqual(windowOrder(scrollingState), ['0xb', '0xa']);
+scrolling.clients[0].floating = true;
+scrollingState = model.reconcile(scrollingState, scrolling, []);
+assert.deepEqual(windowOrder(scrollingState), ['0xa', '0xb']);
+scrolling.clients[0].floating = false;
+delete scrolling.clients[0].at;
+scrollingState = model.reconcile(scrollingState, scrolling, []);
+assert.deepEqual(windowOrder(scrollingState), ['0xa', '0xb']);
+scrolling.workspaces[0].tiledLayout = 'dwindle';
+scrolling.clients[0].at = [-100, 57];
+scrollingState = model.reconcile(scrollingState, scrolling, []);
+assert.deepEqual(windowOrder(scrollingState), ['0xa', '0xb']);
+// Special workspaces use the same layout-aware ordering.
+scrolling.workspaces[0].tiledLayout = 'scrolling';
+scrolling.workspaces[0].id = -98;
+scrolling.workspaces[0].name = 'special:magic';
+scrolling.monitors[0].activeWorkspace.id = -98;
+scrolling.clients.forEach(c => { c.workspace.id = -98; });
+scrollingState = model.reconcile(model.empty(), scrolling, []);
+assert.deepEqual(windowOrder(scrollingState), ['0xb', '0xa']);
+console.log('PASS scrolling: geometry, focus, viewport, swaps, columns, floating, missing geometry, other layouts, special');

@@ -20,6 +20,11 @@ BASE = {
 
 
 def run_case(case):
+    snapshot = json.loads(json.dumps(BASE))
+    if case == 'scrolling':
+        snapshot['workspaces'][0]['tiledLayout'] = 'scrolling'
+        snapshot['clients'][0].update(at=[200, 0], floating=False)
+        snapshot['clients'].append(dict(snapshot['clients'][0], address='0xb', at=[0, 0]))
     with tempfile.TemporaryDirectory(prefix='daevox-transport-') as directory:
         stopped = threading.Event()
         event_peer = [None]
@@ -54,7 +59,10 @@ def run_case(case):
                     event_peer[0].sendall(b'windowtitlev')
                     time.sleep(.015)
                     event_peer[0].sendall(b'2>>a,title\nunknown>>ignored\nactivewindowv2>>a\n')
-                body = json.dumps(BASE[key], ensure_ascii=False).encode() if key in BASE else b'ok'
+                if case == 'scrolling' and key == 'clients' and requests.count('j/clients') > 1:
+                    # Reorder without sending any event, like a scrolling swap.
+                    snapshot['clients'][0]['at'] = [-200, 0]
+                body = json.dumps(snapshot[key], ensure_ascii=False).encode() if key in snapshot else b'ok'
                 # One-byte chunks deliberately split UTF-8 codepoints and JSON framing.
                 for byte in body:
                     peer.sendall(bytes([byte]))
@@ -112,6 +120,11 @@ def run_case(case):
             assert len(requests) == 6, requests  # No polling while idle.
         elif case == 'events':
             assert requests.count('j/clients') >= 2, requests
+        elif case == 'scrolling':
+            assert 'PROBE_ORDER 0xb,0xa' in output, output
+            assert 'PROBE_ORDER 0xa,0xb' in output, output
+            assert requests.count('j/clients') >= 2, requests
+            assert requests.count('j/workspaces') == 1, requests
         else:
             assert 'PROBE_ERROR' in output, output
             assert requests.count('j/version') >= 2, requests
@@ -120,5 +133,5 @@ def run_case(case):
         print('PASS transport:', case, len(requests), 'requests')
 
 
-for case in ['healthy', 'events', 'malformed', 'schema', 'timeout', 'disconnect', 'command-timeout']:
+for case in ['healthy', 'scrolling', 'events', 'malformed', 'schema', 'timeout', 'disconnect', 'command-timeout']:
     run_case(case)

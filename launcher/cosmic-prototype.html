@@ -1,0 +1,101 @@
+<!doctype html>
+<!-- Throwaway UI study: three compact Daevox launcher layouts, ?variant=A|B|C. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daevox — космический лаунчер</title>
+<style>
+:root{color-scheme:dark;--accent:#85e6ed;--line:#ffffff19;--muted:#87939f;--surface:#101821f2}
+*{box-sizing:border-box}body{margin:0;background:#080d15;color:#e6edf3;font:14px/1.4 system-ui,sans-serif;min-height:100vh}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 73% 87%,#25557640,transparent 44%),radial-gradient(ellipse at 24% 16%,#53426724,transparent 50%),radial-gradient(1px 1px at 18% 31%,#adbccc99,transparent),radial-gradient(1px 1px at 83% 23%,#adbccc88,transparent),radial-gradient(1px 1px at 68% 64%,#adbccc88,transparent);background-size:auto,auto,341px 269px,487px 391px,593px 479px}
+button,input,select{font:inherit}button{cursor:pointer;color:inherit;border:0;background:none}button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}button:hover{background:#ffffff09}input{color:inherit}svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}[hidden]{display:none!important}
+.desktop-bar{height:33px;display:flex;justify-content:space-between;align-items:center;padding:0 19px;background:#080d16cc;border-bottom:1px solid #ffffff0a;color:#8994a1;font:11px ui-monospace,monospace;position:relative}.workspaces{display:flex;align-items:center;gap:6px}.workspace{padding:2px 10px}.workspace.active{background:#85e6ed12;color:var(--accent);border-radius:4px}.desktop-title{position:absolute;left:50%;transform:translateX(-50%);color:#606d7c}.desktop-status{display:flex;gap:18px}
+.stage{min-height:calc(100vh - 33px);padding:clamp(48px,12vh,115px) 20px 170px;position:relative}.launcher{width:560px;max-width:100%;margin:auto;position:relative}.modes{display:flex;justify-content:center;gap:10px;margin-bottom:14px}.mode{display:flex;align-items:center;gap:9px;padding:11px 15px;border:1px solid var(--line);background:#121a24dd;border-radius:10px;color:#9ca8b6;font-size:12px;box-shadow:0 5px 20px #0003}.mode small{font:9px ui-monospace,monospace;color:#657180}.mode.active{color:var(--accent);border-color:#85e6ed55;background:#172731}.mode svg{width:17px;height:17px}
+.panel{border:1px solid #85e6ed33;border-radius:14px;background:var(--surface);box-shadow:0 30px 100px #0008,0 0 40px #85e6ed05;overflow:hidden;position:relative}.panel:before{content:"";position:absolute;top:0;left:28%;right:28%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);pointer-events:none}.search{height:66px;display:flex;align-items:center;gap:14px;padding:0 21px;border-bottom:1px solid var(--line);color:var(--accent)}.search input{width:100%;min-width:0;background:none;border:0;outline:none;font-size:17px;letter-spacing:-.02em}.search input::placeholder{color:#7e8b9a}kbd{font:10px ui-monospace,monospace;border:1px solid #ffffff1b;border-radius:4px;padding:2px 5px;color:#7e8b9a;white-space:nowrap}.results{padding:9px;min-height:318px}.result{width:100%;min-height:51px;display:flex;align-items:center;gap:13px;border:1px solid transparent;padding:7px 12px;border-radius:7px;text-align:left}.result.selected{background:linear-gradient(90deg,#85e6ed16,#85e6ed05);border-color:#85e6ed27}.result.selected .name{color:#c9f6f7}.app-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:color-mix(in srgb,var(--icon) 12%,transparent);color:var(--icon);flex-shrink:0}.app-icon svg{width:23px;height:23px}.identity{flex:1;min-width:0}.name{display:block;font-size:14px;font-weight:500}.description{display:block;font-size:11px;color:#84909e;margin-top:2px}.result .key{font:10px ui-monospace,monospace;color:#5c6b7a}.result.selected .key{color:var(--accent)}.foot{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-top:1px solid var(--line);font-size:10px;color:#81909e}.foot span{display:flex;align-items:center;gap:6px}.foot b{font-weight:400;color:var(--accent);letter-spacing:.14em;font:9px ui-monospace,monospace}
+.variant-B{width:520px;--accent:#bcb1ff}.variant-B .modes{justify-content:flex-start;margin:0;border:1px solid #bcb1ff33;border-bottom:0;background:#131522;border-radius:12px 12px 0 0;padding:4px}.variant-B .mode{flex:1;justify-content:center;border:0;box-shadow:none;background:none;padding:10px 8px}.variant-B .mode.active{background:#bcb1ff12}.variant-B .mode small{display:none}.variant-B .panel{border-radius:0 0 12px 12px;border-color:#bcb1ff33;background:#11131ff5}.variant-B .panel:before{display:none}.variant-B .search{height:60px}.variant-B .result{min-height:47px;border-radius:2px}.variant-B .result.selected{background:#bcb1ff12;border-color:transparent;border-left-color:var(--accent)}.variant-B .result.selected .name{color:#ddd5ff}.variant-B .result .identity{display:flex;align-items:center;justify-content:space-between;gap:10px}.variant-B .description{margin:0}.variant-B .app-icon{width:27px;height:27px;background:none}.variant-B .results{min-height:300px}.variant-B .result.selected .key{color:var(--accent)}
+.variant-C{width:610px;display:grid;grid-template-columns:58px 1fr;gap:10px;--accent:#c1d8ef}.variant-C .modes{flex-direction:column;justify-content:flex-start;gap:8px;padding-top:4px;margin:0}.variant-C .mode{padding:15px;justify-content:center;border-radius:5px}.variant-C .mode span,.variant-C .mode small{display:none}.variant-C .panel{border-radius:5px;border-color:#c1d8ef36;background:#101a24f5}.variant-C .panel:before{left:0;right:auto;width:60px;background:var(--accent)}.variant-C .results.apps{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:12px;min-height:295px}.variant-C .result{min-height:83px;position:relative;padding:12px;gap:11px;background:#ffffff03;border-color:#ffffff09;border-radius:4px}.variant-C .result.selected{background:#c1d8ef10;border-color:#c1d8ef60}.variant-C .key{display:none}
+.empty{text-align:center;padding:80px 16px;color:var(--muted)}.audio-row{padding:13px 12px;border-bottom:1px solid var(--line)}.audio-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}.audio-head strong{font-size:13px;font-weight:500;flex:1}.audio-head select{background:#192432;border:1px solid var(--line);color:#aab7c5;max-width:170px;font-size:11px;border-radius:4px;padding:4px}.volume{display:flex;align-items:center;gap:10px}.volume input{flex:1;min-width:40px;accent-color:var(--accent)}.volume output{width:38px;text-align:right;font:11px ui-monospace,monospace}.mute{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:5px 8px}.mute[aria-pressed=true]{color:var(--accent);background:#ffffff15}.notice{padding:13px;border-bottom:1px solid var(--line)}.notice header{display:flex;gap:8px;color:var(--accent);font-size:11px;align-items:center}.notice time{margin-left:auto;color:var(--muted);font-size:10px}.notice p{margin:9px 0;font-size:13px}.notice button{color:var(--muted);font-size:11px}.notification-tools{display:flex;justify-content:space-between;padding:9px 12px;font-size:11px;color:var(--muted)}.notification-tools label{display:flex;gap:6px}.notification-tools input{accent-color:var(--accent)}
+.prototype-tools{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);text-align:center;z-index:5;width:max-content;max-width:95vw}.switcher{display:flex;gap:4px;align-items:center;justify-content:center;padding:5px;border:1px solid #ffffff24;border-radius:9px;background:#19212eee;box-shadow:0 10px 30px #0005}.switcher button{padding:8px 14px;font-size:12px;border-radius:5px;color:#8996a7}.switcher button.active{background:#ffffff12;color:#e0edf7}.prototype-note{font:10px ui-monospace,monospace;color:#798594;margin-top:10px}.reopen{display:block;margin:12px auto;padding:8px 14px;border:1px solid #ffffff30;border-radius:6px;color:#c1d8ef}.feedback{color:#bacbdc;text-align:center;font-size:12px;margin-top:16px;min-height:18px}
+@media(max-width:600px){.stage{padding:65px 12px 155px}.desktop-title{display:none}.mode{padding:10px;gap:6px}.mode small{display:none}.variant-C{gap:6px;grid-template-columns:42px 1fr}.variant-C .mode{padding:12px}.variant-C .results.apps{grid-template-columns:1fr}.variant-C .result{min-height:58px}.variant-B .result .identity{display:block}.variant-B .description{margin-top:2px}.foot{padding:10px;font-size:9px}.variant-C .foot b{display:none}.search{padding:0 14px}.search input{font-size:15px}.switcher button{padding:8px 10px}.audio-head select{max-width:130px}}
+</style>
+</head>
+<body>
+<div class="desktop-bar"><div class="workspaces"><span>◇</span><span class="workspace active">1</span><span class="workspace">2</span><span class="workspace">3</span></div><span class="desktop-title">Рабочий стол</span><div class="desktop-status"><span>10 сен · 19:42</span><span>EN</span><span>◒ 72%</span></div></div>
+<main class="stage"><div id="launcher" class="launcher"><nav class="modes" aria-label="Режим лаунчера"></nav><section class="panel"><label class="search"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input id="search" aria-label="Поиск" placeholder="Найти приложение…" autocomplete="off"><kbd>esc</kbd></label><div id="results" class="results"></div><footer class="foot"><span><kbd>↑↓</kbd> выбрать <kbd>↵</kbd> открыть</span><b>DAEVOX</b><span id="count"></span></footer></section></div><button class="reopen" id="reopen" hidden>Открыть лаунчер</button><div class="feedback" role="status" id="feedback"></div></main>
+<div class="prototype-tools"><nav class="switcher" aria-label="Варианты оформления"><button data-step="-1" aria-label="Предыдущий вариант">←</button><button data-variant="A">A · Halo</button><button data-variant="B">B · Eclipse</button><button data-variant="C">C · Orbit</button><button data-step="1" aria-label="Следующий вариант">→</button></nav><div class="prototype-note" id="state"></div></div>
+<script>
+const icons={
+apps:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+audio:'<path d="M4 9h4l5-4v14l-5-4H4zM17 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
+notifications:'<path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5zM10 20h4"/>',
+firefox:'<path d="M18 4c5 4 4 13-2 16S2 18 3 10l3 3-1-8 5 3c3-3 5-2 7-1l-3 3c5 0 5 7 0 8-4 1-7-2-6-5"/>',
+code:'<path d="m16 3 5 2v14l-5 2L3 11l-2 2 2 2L16 3v18L3 9 1 11l2 2"/>',
+terminal:'<rect x="2" y="3" width="20" height="18" rx="3"/><path d="m6 8 4 4-4 4m7 0h5"/>',
+telegram:'<path d="m2 10 20-7-4 18-6-5-4 3v-6l10-7-12 7z"/>',
+folder:'<path d="M3 7V4h7l3 3h8v13H3zM3 10h18"/>',
+music:'<path d="M9 17V5l11-2v12M9 8l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/>'
+};
+const svg=key=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+icons[key]+'</svg>';
+const apps=[{name:'Firefox',desc:'Веб-браузер',icon:'firefox',color:'#ffae69',keywords:'browser интернет mozilla'},{name:'Visual Studio Code',desc:'Редактор кода',icon:'code',color:'#69b9f9',keywords:'vscode editor разработка'},{name:'Ghostty',desc:'Терминал',icon:'terminal',color:'#c3b0ee',keywords:'terminal shell консоль'},{name:'Telegram',desc:'Сообщения',icon:'telegram',color:'#76c9ee',keywords:'chat мессенджер'},{name:'Dolphin',desc:'Файловый менеджер',icon:'folder',color:'#e7c880',keywords:'files папки файлы'},{name:'Spotify',desc:'Музыка',icon:'music',color:'#85cea2',keywords:'music звук'}];
+const modes=[['apps','Приложения'],['audio','Звук'],['notifications','Уведомления']];
+const keys=['A','B','C'], initial=new URLSearchParams(location.search).get('variant');
+const state={variant:keys.includes(initial)?initial:'A',mode:'apps',query:'',selected:0,open:true,dnd:false};
+const audio=[{name:'Общая громкость',volume:72,muted:false,device:'Наушники'},{name:'Firefox',volume:48,muted:false,device:'Наушники'},{name:'Spotify',volume:65,muted:false,device:'Наушники'}];
+let notifications=[{app:'Telegram',text:'Алексей: Посмотри новый макет, когда будет время.',time:'2 мин',id:1},{app:'Visual Studio Code',text:'Сборка daevox-shell завершена.',time:'8 мин',id:2},{app:'Система',text:'Наушники подключены.',time:'12 мин',id:3}];
+const $=id=>document.getElementById(id);
+const matches=text=>state.query.toLowerCase().split(/\s+/).every(word=>text.toLowerCase().includes(word));
+const filtered=()=>apps.filter(app=>matches(app.name+' '+app.desc+' '+app.keywords));
+const plural=(n,forms)=>new Intl.PluralRules('ru').select(n)==='one'?forms[0]:new Intl.PluralRules('ru').select(n)==='few'?forms[1]:forms[2];
+function updateState(){$('state').textContent='HTML-прототип · '+state.variant+' · '+modes.find(m=>m[0]===state.mode)[1]+' · действия в демо';}
+function render(){
+ $('launcher').className='launcher variant-'+state.variant;$('launcher').hidden=!state.open;$('reopen').hidden=state.open;
+ document.querySelector('.modes').innerHTML=modes.map(([id,name],i)=>'<button class="mode '+(state.mode===id?'active':'')+'" data-mode="'+id+'" aria-label="'+name+'" aria-pressed="'+(state.mode===id)+'">'+svg(id)+'<span>'+name+'</span><small>alt '+(i+1)+'</small></button>').join('');
+ document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>setMode(button.dataset.mode));
+ document.querySelectorAll('[data-variant]').forEach(button=>{button.classList.toggle('active',button.dataset.variant===state.variant);button.setAttribute('aria-pressed',button.dataset.variant===state.variant)});
+ $('search').placeholder=state.mode==='apps'?'Найти приложение…':state.mode==='audio'?'Найти звуковое приложение…':'Поиск в уведомлениях…';
+ renderResults();updateState();
+}
+function renderResults(){
+ const container=$('results');container.className='results '+state.mode;
+ document.querySelector('.foot > span').innerHTML=state.mode==='apps'?'<kbd>↑↓</kbd> выбрать <kbd>↵</kbd> открыть':'<kbd>tab</kbd> контролы <kbd>esc</kbd> закрыть';
+ if(state.mode==='apps'){
+ const list=filtered();state.selected=Math.max(0,Math.min(state.selected,list.length-1));
+ container.innerHTML=list.length?list.map((app,i)=>'<button class="result '+(i===state.selected?'selected':'')+'" data-app="'+i+'" aria-label="Открыть '+app.name+'"><span class="app-icon" style="--icon:'+app.color+'">'+svg(app.icon)+'</span><span class="identity"><span class="name">'+app.name+'</span><span class="description">'+app.desc+'</span></span><span class="key">'+(i===state.selected?'↵':'')+'</span></button>').join(''):'<div class="empty">Ничего не найдено</div>';
+ container.querySelectorAll('[data-app]').forEach(button=>button.onclick=()=>launch(Number(button.dataset.app)));
+ $('count').textContent=list.length+' '+plural(list.length,['приложение','приложения','приложений']);
+ }else if(state.mode==='audio'){
+ container.innerHTML=audio.map((item,i)=>i&& !matches(item.name)?'':'<div class="audio-row"><div class="audio-head">'+svg('audio')+'<strong>'+item.name+'</strong><select aria-label="Устройство вывода: '+item.name+'" data-device="'+i+'">'+['Наушники','Динамики'].map(device=>'<option '+(item.device===device?'selected':'')+'>'+device+'</option>').join('')+'</select></div><div class="volume"><button class="mute" data-mute="'+i+'" aria-pressed="'+item.muted+'">'+(item.muted?'Вкл. звук':'Mute')+'</button><input type="range" min="0" max="100" value="'+item.volume+'" aria-label="Громкость: '+item.name+'" data-volume="'+i+'"><output>'+item.volume+'%</output></div></div>').join('');
+ container.querySelectorAll('[data-volume]').forEach(input=>input.oninput=()=>{audio[input.dataset.volume].volume=Number(input.value);input.nextElementSibling.textContent=input.value+'%'});
+ container.querySelectorAll('[data-mute]').forEach(button=>button.onclick=()=>{audio[button.dataset.mute].muted=!audio[button.dataset.mute].muted;renderResults()});
+ container.querySelectorAll('[data-device]').forEach(select=>select.onchange=()=>audio[select.dataset.device].device=select.value);
+ $('count').textContent='Демонстрация звука';
+ }else{
+ const list=notifications.filter(n=>matches(n.app+' '+n.text));
+ container.innerHTML='<div class="notification-tools"><label><input type="checkbox" id="dnd" '+(state.dnd?'checked':'')+'> Не беспокоить</label><button id="clear">Очистить всё</button></div>'+ (list.length?list.map(n=>'<article class="notice"><header>'+n.app+'<time>'+n.time+'</time></header><p>'+n.text+'</p><button data-dismiss="'+n.id+'">Удалить</button></article>').join(''):'<div class="empty">Нет уведомлений</div>');
+ $('dnd').onchange=e=>state.dnd=e.target.checked;$('clear').onclick=()=>{notifications=[];renderResults()};
+ container.querySelectorAll('[data-dismiss]').forEach(button=>button.onclick=()=>{notifications=notifications.filter(n=>n.id!==Number(button.dataset.dismiss));renderResults()});
+ $('count').textContent=list.length+' '+plural(list.length,['уведомление','уведомления','уведомлений']);
+ }
+}
+function setMode(mode){state.mode=mode;state.query='';state.selected=0;$('search').value='';render();$('search').focus()}
+function setVariant(variant){state.variant=variant;const url=new URL(location.href);url.searchParams.set('variant',variant);history.replaceState(null,'',url);render()}
+function cycle(step){setVariant(keys[(keys.indexOf(state.variant)+step+3)%3])}
+function launch(index){const app=filtered()[index];if(!app)return;state.open=false;render();$('feedback').textContent='Демо: запуск '+app.name+'.';$('reopen').focus()}
+function reopen(){state.open=true;$('feedback').textContent='';setMode('apps')}
+document.querySelectorAll('[data-variant]').forEach(button=>button.onclick=()=>setVariant(button.dataset.variant));
+document.querySelectorAll('[data-step]').forEach(button=>button.onclick=()=>cycle(Number(button.dataset.step)));
+ $('search').oninput=e=>{state.query=e.target.value;state.selected=0;renderResults()};
+ $('reopen').onclick=reopen;
+document.addEventListener('keydown',e=>{
+ if(e.altKey&&['1','2','3'].includes(e.key)){e.preventDefault();setMode(modes[Number(e.key)-1][0]);return}
+ if(e.key==='Escape'){if(state.query){state.query='';$('search').value='';renderResults()}else{state.open=false;render();$('reopen').focus()}return}
+ if(!state.open)return;
+ if(state.mode==='apps'&&['ArrowUp','ArrowDown'].includes(e.key)&&!e.target.closest('.prototype-tools')){e.preventDefault();const count=filtered().length;if(count){state.selected=(state.selected+(e.key==='ArrowDown'?1:-1)+count)%count;renderResults()}return}
+ if(e.key==='Enter'&&e.target===$('search')&&state.mode==='apps'){e.preventDefault();launch(state.selected);return}
+ if(!e.target.matches('input,textarea,select,[contenteditable]')&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();cycle(e.key==='ArrowRight'?1:-1)}
+});
+render();$('search').focus();
+</script>
+</body>
+</html>
