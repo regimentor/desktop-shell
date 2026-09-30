@@ -32,7 +32,7 @@ ShellRoot {
             for (const panel of panels.instances) {
                 const strip = root.find(panel.contentItem, "workspaces");
                 const right = root.find(panel.contentItem, "rightModules");
-                if (!strip || !right || strip.x + strip.width > right.x || panel.exclusiveZone !== 36) {
+                if (!strip || !right || strip.x + strip.width > right.x || panel.exclusiveZone !== 30) {
                     console.error("UI_FAIL geometry"); Qt.quit(); return;
                 }
                 console.log("UI_PANEL", panel.screen.name, "width", panel.width, "groups", strip.groups.length, "reserved", panel.exclusiveZone);

@@ -9,27 +9,13 @@ PanelWindow {
     required property var clock
     Theme { id: barTheme }
     anchors { top: true; left: true; right: true }
-    implicitHeight: barTheme.height + barTheme.margin
+    implicitHeight: barTheme.height
     exclusiveZone: implicitHeight
     color: "transparent"
     Rectangle {
-        x: barTheme.margin - 1
-        y: barTheme.margin - 2
-        width: parent.width - 2 * x
-        height: barTheme.height + 2
-        radius: barTheme.radius + 1
-        color: barTheme.shadow
-    }
-    Rectangle {
         id: surface
-        x: barTheme.margin
-        y: barTheme.margin
-        width: parent.width - 2 * barTheme.margin
-        height: barTheme.height
-        radius: barTheme.radius
+        anchors.fill: parent
         color: barTheme.background
-        border.width: 1
-        border.color: barTheme.border
         WorkspaceStrip {
             id: workspaces
             objectName: "workspaces"
